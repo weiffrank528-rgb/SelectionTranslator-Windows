@@ -1,0 +1,30 @@
+# Visual Studio / MSBuild
+.vs/
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local build and test artifacts
+work/
+outputs/
+*.exe
+*.pdb
+*.zip
+*.tmp
+*.log
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local configuration and secrets
+settings.json
+*.secrets.json
+.env
+.env.*

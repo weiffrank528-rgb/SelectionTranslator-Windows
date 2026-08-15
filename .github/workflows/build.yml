@@ -1,0 +1,32 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build Release
+        run: msbuild SelectionTranslator.sln /t:Rebuild /p:Configuration=Release /p:Platform="Any CPU" /v:minimal
+
+      - name: Run offline smoke tests
+        shell: powershell
+        run: .\test.ps1 -SkipNetwork
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: SelectionTranslator-Windows
+          path: src/SelectionTranslator/bin/Release/SelectionTranslator.exe
+          if-no-files-found: error

@@ -1,0 +1,52 @@
+name: 兼容性或崩溃报告
+description: 报告某个 Windows 应用无法取词、浮窗异常或程序退出
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: 请勿提交 API Key、私人文本或未经处理的敏感截图。
+  - type: input
+    id: version
+    attributes:
+      label: SelectionTranslator 版本
+      placeholder: 例如 0.4.4
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows 版本
+      placeholder: 例如 Windows 11 24H2
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: 目标应用和版本
+      placeholder: 例如 WPS Writer 12.1.0.28043 / wps.exe
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: 请写出从启动到出现问题的具体操作。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期和实际结果
+    validations:
+      required: true
+  - type: checkboxes
+    id: settings
+    attributes:
+      label: 相关设置
+      options:
+        - label: 已启用剪贴板兜底
+        - label: 已启用 WPS 兼容（如适用）
+        - label: 已确认报告中不包含密钥或私人内容
+          required: true

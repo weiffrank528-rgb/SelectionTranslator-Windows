@@ -9,6 +9,7 @@ namespace SelectionTranslator
         private readonly AppSettings _working;
         private readonly CheckBox _enabled = new CheckBox();
         private readonly ComboBox _engine = new ComboBox();
+        private readonly CheckBox _autoDetectSourceLanguage = new CheckBox();
         private readonly TextBox _sourceLanguage = new TextBox();
         private readonly TextBox _targetLanguage = new TextBox();
         private readonly NumericUpDown _minCharacters = NumberBox(1, 100, 2);
@@ -49,6 +50,8 @@ namespace SelectionTranslator
             Size = new Size(680, 720);
             MinimumSize = new Size(620, 600);
             Font = new Font("Microsoft YaHei UI", 9F);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            AutoScaleDimensions = new SizeF(96F, 96F);
 
             var tabs = new TabControl { Dock = DockStyle.Fill };
             tabs.TabPages.Add(BuildGeneralTab());
@@ -57,12 +60,25 @@ namespace SelectionTranslator
             var buttonPanel = new FlowLayoutPanel
             {
                 Dock = DockStyle.Bottom,
-                Height = 54,
+                Height = 68,
                 FlowDirection = FlowDirection.RightToLeft,
-                Padding = new Padding(10)
+                WrapContents = false,
+                Padding = new Padding(10, 12, 10, 12)
             };
-            var save = new Button { Text = "保存", Width = 90, DialogResult = DialogResult.None };
-            var cancel = new Button { Text = "取消", Width = 90, DialogResult = DialogResult.Cancel };
+            var save = new Button
+            {
+                Text = "保存",
+                Size = new Size(90, 38),
+                Margin = new Padding(3, 0, 3, 0),
+                DialogResult = DialogResult.None
+            };
+            var cancel = new Button
+            {
+                Text = "取消",
+                Size = new Size(90, 38),
+                Margin = new Padding(3, 0, 3, 0),
+                DialogResult = DialogResult.Cancel
+            };
             save.Click += SaveClicked;
             buttonPanel.Controls.Add(save);
             buttonPanel.Controls.Add(cancel);
@@ -82,8 +98,14 @@ namespace SelectionTranslator
             AddRow(table, "翻译引擎", _engine);
             _engine.DropDownStyle = ComboBoxStyle.DropDownList;
             _engine.Items.AddRange(new object[] { "MyMemory", "Google", "OpenAI", "DeepL" });
-            AddRow(table, "源语言", _sourceLanguage, "MyMemory 建议填 en；Google/DeepL 填 auto 可自动识别；OpenAI 会按内容理解。");
-            AddRow(table, "目标语言", _targetLanguage, "默认 zh-CN（简体中文）");
+            _autoDetectSourceLanguage.Text = "实时检测所选文字是中文还是英文";
+            _autoDetectSourceLanguage.AutoSize = true;
+            _autoDetectSourceLanguage.CheckedChanged += delegate { UpdateSourceLanguageAvailability(); };
+            AddRow(table, "自动检测源语言", _autoDetectSourceLanguage,
+                "MyMemory 会在本机即时区分中文/英文，不增加网络请求；暂不自动检测其他语言。Google/DeepL 仍使用服务端自动识别。");
+            AddRow(table, "手动源语言", _sourceLanguage, "关闭自动检测后生效，例如 zh-CN 或 en。");
+            AddRow(table, "目标语言", _targetLanguage,
+                "自动检测开启时作为首选目标：若原文与目标同为中文或同为英文，程序会自动切换到另一种语言，实现中英双向翻译。");
             AddRow(table, "最少字符数", _minCharacters);
             AddRow(table, "最多字符数", _maxCharacters);
             AddRow(table, "最短拖动时间（毫秒）", _dragMilliseconds);
@@ -206,8 +228,10 @@ namespace SelectionTranslator
             _enabled.Checked = _working.Enabled;
             _engine.SelectedItem = _working.Engine;
             if (_engine.SelectedIndex < 0) _engine.SelectedIndex = 0;
+            _autoDetectSourceLanguage.Checked = _working.AutoDetectSourceLanguage;
             _sourceLanguage.Text = _working.SourceLanguage;
             _targetLanguage.Text = _working.TargetLanguage;
+            UpdateSourceLanguageAvailability();
             SetNumber(_minCharacters, _working.MinCharacters);
             SetNumber(_maxCharacters, _working.MaxCharacters);
             SetNumber(_dragMilliseconds, _working.MinDragMilliseconds);
@@ -238,13 +262,15 @@ namespace SelectionTranslator
 
         private void SaveClicked(object sender, EventArgs eventArgs)
         {
-            if (string.IsNullOrWhiteSpace(_sourceLanguage.Text) || string.IsNullOrWhiteSpace(_targetLanguage.Text))
+            if ((!_autoDetectSourceLanguage.Checked && string.IsNullOrWhiteSpace(_sourceLanguage.Text))
+                || string.IsNullOrWhiteSpace(_targetLanguage.Text))
             {
-                MessageBox.Show(this, "请填写源语言和目标语言。", "设置", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, "请填写目标语言；关闭自动检测时还需填写源语言。", "设置", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
             _working.Enabled = _enabled.Checked;
             _working.Engine = Convert.ToString(_engine.SelectedItem);
+            _working.AutoDetectSourceLanguage = _autoDetectSourceLanguage.Checked;
             _working.SourceLanguage = _sourceLanguage.Text.Trim();
             _working.TargetLanguage = _targetLanguage.Text.Trim();
             _working.MinCharacters = (int)_minCharacters.Value;
@@ -270,6 +296,11 @@ namespace SelectionTranslator
             SavedSettings = _working;
             DialogResult = DialogResult.OK;
             Close();
+        }
+
+        private void UpdateSourceLanguageAvailability()
+        {
+            _sourceLanguage.Enabled = !_autoDetectSourceLanguage.Checked;
         }
     }
 }

@@ -7,5 +7,5 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProduct("SelectionTranslator")]
 [assembly: AssemblyCopyright("Copyright © 2026")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("0.4.4.0")]
-[assembly: AssemblyFileVersion("0.4.4.0")]
+[assembly: AssemblyVersion("0.4.5.0")]
+[assembly: AssemblyFileVersion("0.4.5.0")]

@@ -203,7 +203,8 @@ namespace SelectionTranslator
             Hide();
         }
 
-        internal void ShowLoading(string source, string engine, Point anchor)
+        internal void ShowLoading(string source, string engine, string sourceLanguage, string targetLanguage,
+            bool automaticallyDetected, Point anchor)
         {
             _anchor = anchor;
             _fullSourceText = source ?? "";
@@ -211,6 +212,7 @@ namespace SelectionTranslator
             _isSpeaking = false;
             _header.Text = engine;
             _header.ForeColor = AccentColor;
+            SetLanguageLabels(sourceLanguage, targetLanguage, automaticallyDetected);
             _source.Text = Compact(_fullSourceText, 700);
             _result.Text = "正在翻译，请稍候…";
             _baseFooterText = "正在获取译文";
@@ -221,7 +223,8 @@ namespace SelectionTranslator
             _hideTimer.Stop();
         }
 
-        internal void ShowResult(string source, string translation, string engine, string readMethod, Point anchor, int autoHideMilliseconds)
+        internal void ShowResult(string source, string translation, string engine, string readMethod,
+            string sourceLanguage, string targetLanguage, bool automaticallyDetected, Point anchor, int autoHideMilliseconds)
         {
             _anchor = anchor;
             _fullSourceText = source ?? "";
@@ -229,6 +232,7 @@ namespace SelectionTranslator
             _isSpeaking = false;
             _header.Text = engine;
             _header.ForeColor = SuccessColor;
+            SetLanguageLabels(sourceLanguage, targetLanguage, automaticallyDetected);
             _source.Text = Compact(_fullSourceText, 700);
             _result.Text = translation;
             _baseFooterText = readMethod + " · 悬停暂停隐藏 · 点击外部关闭";
@@ -247,6 +251,8 @@ namespace SelectionTranslator
             _isSpeaking = false;
             _header.Text = "翻译失败";
             _header.ForeColor = Color.FromArgb(255, 137, 137);
+            _sourceTitle.Text = "提示";
+            _translationTitle.Text = "错误详情";
             _source.Text = "请检查网络或在托盘菜单中打开设置。";
             _result.Text = message;
             _baseFooterText = "点击 × 或浮窗外部关闭";
@@ -255,6 +261,13 @@ namespace SelectionTranslator
             LayoutContent();
             ShowNearAnchor();
             RestartHideTimer();
+        }
+
+        private void SetLanguageLabels(string sourceLanguage, string targetLanguage, bool automaticallyDetected)
+        {
+            var sourceName = LanguageDetection.DisplayName(sourceLanguage);
+            _sourceTitle.Text = automaticallyDetected ? "原文 · 自动识别：" + sourceName : "原文 · " + sourceName;
+            _translationTitle.Text = LanguageDetection.TranslationTitle(targetLanguage);
         }
 
         internal void SetSpeechState(bool isSpeaking, string message)

@@ -12,6 +12,7 @@ namespace SelectionTranslator
         public string Engine = "MyMemory";
         public string SourceLanguage = "en";
         public string TargetLanguage = "zh-CN";
+        public bool AutoDetectSourceLanguage = true;
         public int MinCharacters = 2;
         public int MaxCharacters = 1500;
         public int MinDragMilliseconds = 60;

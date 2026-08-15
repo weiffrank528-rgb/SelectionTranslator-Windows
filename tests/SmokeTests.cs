@@ -5,6 +5,7 @@ using System.Net;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
+using System.Web.Script.Serialization;
 
 namespace SelectionTranslator
 {
@@ -19,6 +20,9 @@ namespace SelectionTranslator
                 var settings = new AppSettings();
                 var clone = settings.Clone();
                 Assert(clone.Engine == "MyMemory", "settings clone");
+                Assert(clone.AutoDetectSourceLanguage, "automatic source detection default");
+                var migrated = new JavaScriptSerializer().Deserialize<AppSettings>("{\"Engine\":\"MyMemory\",\"SourceLanguage\":\"zh-CN\"}");
+                Assert(migrated.AutoDetectSourceLanguage, "automatic source detection old-settings migration");
                 Assert(clone.AutoHideMilliseconds == 6500 && clone.HideOnOutsideClick, "popup dismissal defaults");
                 Assert(clone.EnableWpsCompatibility, "WPS compatibility default");
 
@@ -51,6 +55,25 @@ namespace SelectionTranslator
                 Assert(googleEngine.DisplayName.IndexOf("Google", StringComparison.OrdinalIgnoreCase) >= 0, "Google engine factory");
                 Console.WriteLine("PASS Google engine factory");
 
+                Assert(LanguageDetection.DetectChineseOrEnglish("需要你手动选择") == "zh-CN", "detect Chinese source");
+                Assert(LanguageDetection.DetectChineseOrEnglish("You need to select it manually") == "en", "detect English source");
+                Assert(LanguageDetection.TranslationTitle("en") == "英文翻译", "English translation title");
+                Assert(LanguageDetection.TranslationTitle("zh-CN") == "中文翻译", "Chinese translation title");
+                var englishTarget = settings.Clone();
+                englishTarget.TargetLanguage = "en";
+                Assert(LanguageDetection.ResolveTargetLanguage("zh-CN", englishTarget) == "en", "Chinese source keeps English target");
+                Assert(LanguageDetection.ResolveTargetLanguage("en", englishTarget) == "zh-CN", "English source flips to Chinese target");
+                var chineseTarget = settings.Clone();
+                chineseTarget.TargetLanguage = "zh-CN";
+                Assert(LanguageDetection.ResolveTargetLanguage("en", chineseTarget) == "zh-CN", "English source keeps Chinese target");
+                Assert(LanguageDetection.ResolveTargetLanguage("zh-CN", chineseTarget) == "en", "Chinese source flips to English target");
+                var explicitLanguage = settings.Clone();
+                explicitLanguage.AutoDetectSourceLanguage = false;
+                explicitLanguage.SourceLanguage = "zh-CN";
+                Assert(LanguageDetection.ResolveSourceLanguage("English text", explicitLanguage) == "zh-CN", "manual source override");
+                Assert(LanguageDetection.ResolveTargetLanguage("en", explicitLanguage) == "zh-CN", "manual target remains fixed");
+                Console.WriteLine("PASS Chinese/English source detection and labels");
+
                 foreach (var argument in args)
                 {
                     const string renderPrefix = "--render-popup=";
@@ -58,6 +81,12 @@ namespace SelectionTranslator
                     {
                         RenderPopup(argument.Substring(renderPrefix.Length));
                         Console.WriteLine("PASS popup preview render");
+                    }
+                    const string renderSettingsPrefix = "--render-settings=";
+                    if (argument.StartsWith(renderSettingsPrefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        RenderSettings(argument.Substring(renderSettingsPrefix.Length), settings);
+                        Console.WriteLine("PASS settings preview render");
                     }
                 }
 
@@ -67,6 +96,13 @@ namespace SelectionTranslator
                         .GetAwaiter().GetResult();
                     Assert(!string.IsNullOrWhiteSpace(translated), "live MyMemory translation");
                     Console.WriteLine("PASS live MyMemory translation: " + translated);
+
+                    var chineseToEnglish = settings.Clone();
+                    chineseToEnglish.TargetLanguage = "en";
+                    var english = engine.TranslateAsync("需要你手动", chineseToEnglish, CancellationToken.None)
+                        .GetAwaiter().GetResult();
+                    Assert(!string.IsNullOrWhiteSpace(english) && english != "需要你手动", "live MyMemory Chinese to English");
+                    Console.WriteLine("PASS live MyMemory Chinese to English: " + english);
                 }
 
                 return 0;
@@ -152,9 +188,9 @@ namespace SelectionTranslator
             using (var popup = new PopupForm())
             {
                 popup.ShowResult(
-                    "Google Cloud Translation API — automatic language detection and high-quality neural translation",
-                    "如何获取谷歌云翻译 API 密钥？这是一段用于检查英文原文换行、行高和译文间距的预览。",
-                    "Google Cloud Translation", "UI Automation", new Point(700, 420), 0);
+                    "需要你手动选择一次，然后应用会自动识别中文并翻译成英文。",
+                    "You need to select it manually once. The app will then detect Chinese and translate it into English.",
+                    "MyMemory（免 Key）", "UI Automation", "zh-CN", "en", true, new Point(700, 420), 0);
                 Application.DoEvents();
                 Assert(popup.ContainsScreenPoint(new Point(popup.Left + 10, popup.Top + 10)), "popup contains inside point");
                 Assert(!popup.ContainsScreenPoint(new Point(popup.Right + 10, popup.Bottom + 10)), "popup excludes outside point");
@@ -164,6 +200,21 @@ namespace SelectionTranslator
                     bitmap.Save(path, ImageFormat.Png);
                 }
                 popup.Hide();
+            }
+        }
+
+        private static void RenderSettings(string path, AppSettings settings)
+        {
+            using (var form = new SettingsForm(settings))
+            {
+                form.Show();
+                Application.DoEvents();
+                using (var bitmap = new Bitmap(form.Width, form.Height))
+                {
+                    form.DrawToBitmap(bitmap, new Rectangle(0, 0, bitmap.Width, bitmap.Height));
+                    bitmap.Save(path, ImageFormat.Png);
+                }
+                form.Close();
             }
         }
     }

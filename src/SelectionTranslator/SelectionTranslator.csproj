@@ -42,6 +42,7 @@
     <Compile Include="ExistingInstanceForm.cs" />
     <Compile Include="GlobalMouseHook.cs" />
     <Compile Include="InstanceCoordinator.cs" />
+    <Compile Include="LanguageDetection.cs" />
     <Compile Include="NativeMethods.cs" />
     <Compile Include="PopupForm.cs" />
     <Compile Include="Program.cs" />

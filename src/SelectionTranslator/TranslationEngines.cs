@@ -48,8 +48,8 @@ namespace SelectionTranslator
             body["q"] = text;
             body["target"] = MapGoogleLanguage(settings.TargetLanguage);
             body["format"] = "text";
-            if (!string.IsNullOrWhiteSpace(settings.SourceLanguage)
-                && !string.Equals(settings.SourceLanguage, "auto", StringComparison.OrdinalIgnoreCase))
+            if (!LanguageDetection.IsAutomatic(settings)
+                && !string.IsNullOrWhiteSpace(settings.SourceLanguage))
                 body["source"] = MapGoogleLanguage(settings.SourceLanguage);
 
             var separator = settings.GoogleEndpoint.IndexOf('?') >= 0 ? "&" : "?";
@@ -118,13 +118,14 @@ namespace SelectionTranslator
 
         public async Task<string> TranslateAsync(string text, AppSettings settings, CancellationToken token)
         {
+            var sourceLanguage = LanguageDetection.ResolveSourceLanguage(text, settings);
             var chunks = SplitByUtf8Bytes(text, 430);
             var translated = new List<string>();
             foreach (var chunk in chunks)
             {
                 token.ThrowIfCancellationRequested();
                 var url = "https://api.mymemory.translated.net/get?q=" + Uri.EscapeDataString(chunk)
-                    + "&langpair=" + Uri.EscapeDataString(NormalizeSource(settings.SourceLanguage) + "|" + settings.TargetLanguage)
+                    + "&langpair=" + Uri.EscapeDataString(sourceLanguage + "|" + settings.TargetLanguage)
                     + "&mt=1";
                 if (!string.IsNullOrWhiteSpace(settings.MyMemoryEmail))
                     url += "&de=" + Uri.EscapeDataString(settings.MyMemoryEmail.Trim());
@@ -144,13 +145,6 @@ namespace SelectionTranslator
                 }
             }
             return string.Join(" ", translated.ToArray()).Trim();
-        }
-
-        private static string NormalizeSource(string language)
-        {
-            if (string.IsNullOrWhiteSpace(language) || string.Equals(language, "auto", StringComparison.OrdinalIgnoreCase))
-                return "en";
-            return language.Trim();
         }
 
         private static IList<string> SplitByUtf8Bytes(string text, int maxBytes)
@@ -183,7 +177,8 @@ namespace SelectionTranslator
 
             var body = new Dictionary<string, object>();
             body["model"] = settings.OpenAIModel;
-            body["instructions"] = "You are a precise translation engine. Translate the user's text into Simplified Chinese. Return only the translation, preserving useful formatting.";
+            body["instructions"] = "You are a precise translation engine. Translate the user's text into the language identified by code '"
+                + settings.TargetLanguage.Trim() + "'. Return only the translation, preserving useful formatting.";
             body["input"] = text;
             body["max_output_tokens"] = 1800;
 
@@ -245,8 +240,8 @@ namespace SelectionTranslator
             var values = new List<KeyValuePair<string, string>>();
             values.Add(new KeyValuePair<string, string>("text", text));
             values.Add(new KeyValuePair<string, string>("target_lang", MapDeepLLanguage(settings.TargetLanguage)));
-            if (!string.IsNullOrWhiteSpace(settings.SourceLanguage)
-                && !string.Equals(settings.SourceLanguage, "auto", StringComparison.OrdinalIgnoreCase))
+            if (!LanguageDetection.IsAutomatic(settings)
+                && !string.IsNullOrWhiteSpace(settings.SourceLanguage))
                 values.Add(new KeyValuePair<string, string>("source_lang", settings.SourceLanguage.ToUpperInvariant()));
 
             using (var request = new HttpRequestMessage(HttpMethod.Post, settings.DeepLEndpoint))

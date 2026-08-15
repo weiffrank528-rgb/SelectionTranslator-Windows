@@ -26,6 +26,7 @@ namespace SelectionTranslator
         private CancellationTokenSource _gestureCancellation;
         private IntPtr _popupSourceWindow;
         private string _lastText = "";
+        private string _currentSourceLanguage = "en";
         private DateTime _lastTextAt = DateTime.MinValue;
         private bool _exiting;
 
@@ -139,7 +140,7 @@ namespace SelectionTranslator
                 _popup.SetSpeechState(false, "Windows 本地语音不可用，请在系统中安装语音包");
                 return;
             }
-            _speaker.Toggle(text, _settings.SourceLanguage);
+            _speaker.Toggle(text, _currentSourceLanguage);
         }
 
         private void OnSpeechStatusChanged(object sender, SpeechStatusEventArgs eventArgs)
@@ -211,11 +212,19 @@ namespace SelectionTranslator
                 }
 
                 var engine = TranslationEngineFactory.Create(_settings);
-                _popup.ShowLoading(text, engine.DisplayName, anchor);
-                var translation = await engine.TranslateAsync(text, _settings, token);
+                var automaticallyDetected = LanguageDetection.IsAutomatic(_settings);
+                var sourceLanguage = LanguageDetection.ResolveSourceLanguage(text, _settings);
+                var targetLanguage = LanguageDetection.ResolveTargetLanguage(sourceLanguage, _settings);
+                var translationSettings = _settings.Clone();
+                translationSettings.TargetLanguage = targetLanguage;
+                _currentSourceLanguage = sourceLanguage;
+                _popup.ShowLoading(text, engine.DisplayName, sourceLanguage, targetLanguage,
+                    automaticallyDetected, anchor);
+                var translation = await engine.TranslateAsync(text, translationSettings, token);
                 token.ThrowIfCancellationRequested();
                 if (string.IsNullOrWhiteSpace(translation)) return;
-                _popup.ShowResult(text, translation, engine.DisplayName, result.Method, anchor, _settings.AutoHideMilliseconds);
+                _popup.ShowResult(text, translation, engine.DisplayName, result.Method, sourceLanguage,
+                    targetLanguage, automaticallyDetected, anchor, _settings.AutoHideMilliseconds);
             }
             catch (OperationCanceledException) { }
             catch (Exception exception)

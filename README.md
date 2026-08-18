@@ -4,7 +4,7 @@
 
 一个可运行的 Windows 桌面 MVP：在其他应用里用左键正常拖选文字，或双击/三击选择单词、行和段落，随后自动读取选区，并在选区或鼠标附近显示目标语言译文。无需按快捷键，也无需再点击“翻译”。
 
-![SelectionTranslator 中译英浮窗](docs/images/popup-0.4.5.png)
+![SelectionTranslator 中译英浮窗](docs/images/SelectionTranslator-popup-preview-0.4.6.png)
 
 ## 当前能力
 

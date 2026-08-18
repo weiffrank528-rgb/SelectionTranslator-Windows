@@ -95,7 +95,7 @@ namespace SelectionTranslator
             _instanceRequestTimer.Start();
 
             _tray.BalloonTipTitle = "划词翻译已运行";
-            _tray.BalloonTipText = "在其他应用中用左键拖选文字，松手后会自动翻译。右键托盘图标可设置。";
+            _tray.BalloonTipText = "在其他应用中拖选文字，或双击/三击选词，随后会自动翻译。右键托盘图标可设置。";
             _tray.ShowBalloonTip(3500);
         }
 
@@ -161,6 +161,7 @@ namespace SelectionTranslator
         private async void OnSelectionGestureCompleted(MouseSelectionGesture gesture)
         {
             if (_exiting || !_settings.Enabled) return;
+            if (_popup.ContainsScreenPoint(gesture.EndPoint)) return;
 
             if (_speaker != null) _speaker.Stop();
 
@@ -174,8 +175,11 @@ namespace SelectionTranslator
 
             try
             {
-                if (_settings.SelectionDelayMilliseconds > 0)
-                    await Task.Delay(_settings.SelectionDelayMilliseconds, token);
+                var selectionDelay = _settings.SelectionDelayMilliseconds;
+                if (gesture.ClickCount == 2)
+                    selectionDelay = Math.Max(selectionDelay, Math.Min(260, (int)NativeMethods.GetDoubleClickTime()));
+                if (selectionDelay > 0)
+                    await Task.Delay(selectionDelay, token);
 
                 var window = GetForegroundWindowInfo();
                 if (window == null || window.Handle == IntPtr.Zero || window.ProcessId == Process.GetCurrentProcess().Id) return;
@@ -187,6 +191,11 @@ namespace SelectionTranslator
                 if (result.IsSensitive) return;
                 if (string.IsNullOrWhiteSpace(result.Text))
                 {
+                    if (!string.IsNullOrWhiteSpace(result.WarningMessage))
+                    {
+                        _popup.ShowError(result.WarningMessage, gesture.EndPoint, 4500);
+                        return;
+                    }
                     if (IsWpsProcess(window.ProcessName))
                     {
                         var message = !_settings.EnableClipboardFallback

@@ -7,42 +7,47 @@ using System.Threading.Tasks;
 
 namespace SelectionTranslator
 {
+    internal sealed class ClipboardReadResult
+    {
+        internal string Text;
+        internal string WarningMessage;
+    }
+
     internal static class ClipboardSelectionReader
     {
         private const int ClipboardOpenAttempts = 7;
         private const int ClipboardOpenRetryMilliseconds = 15;
         private const ulong MaximumTextBytes = 16UL * 1024UL * 1024UL;
+        private static readonly SemaphoreSlim ClipboardGate = new SemaphoreSlim(1, 1);
 
-        internal static Task<string> TryReadAsync(
+        internal static Task<ClipboardReadResult> TryReadAsync(
             IntPtr expectedForegroundWindow,
             int expectedProcessId,
             bool useWpsCompatibility,
             uint clipboardSequenceAtMouseUp,
             CancellationToken token)
         {
-            var completion = new TaskCompletionSource<string>();
+            var completion = new TaskCompletionSource<ClipboardReadResult>();
             var thread = new Thread(delegate()
             {
                 IClipboardSnapshot snapshot = null;
+                var gateEntered = false;
                 var clipboardWasChanged = false;
+                var clipboardChangedBeforeCopy = false;
                 var copiedText = "";
                 try
                 {
+                    ClipboardGate.Wait(token);
+                    gateEntered = true;
                     if (!token.IsCancellationRequested
                         && IsExpectedForegroundProcess(expectedForegroundWindow, expectedProcessId))
                     {
-                        // A user may press Ctrl+C immediately after mouse-up. In that case the
-                        // clipboard sequence has already changed: use the user's copy as the input
-                        // and never restore an older snapshot over it.
-                        if (NativeMethods.GetClipboardSequenceNumber() != clipboardSequenceAtMouseUp)
-                        {
-                            copiedText = TryReadUnicodeText() ?? "";
-                            if (!string.IsNullOrWhiteSpace(copiedText))
-                            {
-                                completion.TrySetResult(copiedText);
-                                return;
-                            }
-                        }
+                        // A sequence change alone does not prove that the user copied the current
+                        // selection. It can also be caused by a previous fallback restoring its
+                        // snapshot, Office/browser delayed rendering, or a clipboard manager. Never
+                        // translate that pre-existing text; always request a fresh copy below.
+                        clipboardChangedBeforeCopy =
+                            NativeMethods.GetClipboardSequenceNumber() != clipboardSequenceAtMouseUp;
 
                         // Ordinary applications keep the conservative text-only snapshot. WPS often
                         // leaves HTML/OLE formats on the clipboard and does not expose TextPattern, so
@@ -50,23 +55,48 @@ namespace SelectionTranslator
                         snapshot = ClipboardTextSnapshot.TryCaptureIfSafe();
                         if (snapshot == null && useWpsCompatibility)
                             snapshot = OleClipboardSnapshot.TryCapture();
+                        clipboardChangedBeforeCopy = clipboardChangedBeforeCopy
+                            || NativeMethods.GetClipboardSequenceNumber() != clipboardSequenceAtMouseUp;
 
                         if (snapshot != null)
                         {
                             if (useWpsCompatibility) Thread.Sleep(70);
                             var baseline = NativeMethods.GetClipboardSequenceNumber();
+
+                            // Preserve a genuine manual Ctrl+C that arrived while UI Automation was
+                            // being tried. Refresh the snapshot before issuing our own Ctrl+C.
+                            if (baseline != clipboardSequenceAtMouseUp)
+                            {
+                                snapshot.Dispose();
+                                snapshot = ClipboardTextSnapshot.TryCaptureIfSafe();
+                                if (snapshot == null && useWpsCompatibility)
+                                    snapshot = OleClipboardSnapshot.TryCapture();
+                                baseline = NativeMethods.GetClipboardSequenceNumber();
+                            }
+
+                            if (snapshot == null) return;
                             if (NativeMethods.SendCtrlC())
                             {
                                 var waitMilliseconds = useWpsCompatibility ? 750 : 260;
                                 var deadline = Environment.TickCount + waitMilliseconds;
+                                var observedSequence = baseline;
+                                var quietDeadline = 0;
                                 while (!token.IsCancellationRequested && unchecked(deadline - Environment.TickCount) > 0)
                                 {
-                                    if (NativeMethods.GetClipboardSequenceNumber() != baseline)
+                                    var currentSequence = NativeMethods.GetClipboardSequenceNumber();
+                                    if (currentSequence != observedSequence)
                                     {
+                                        observedSequence = currentSequence;
                                         clipboardWasChanged = true;
-                                        copiedText = TryReadUnicodeText() ?? "";
-                                        if (!string.IsNullOrEmpty(copiedText)) break;
+                                        var currentText = TryReadUnicodeText() ?? "";
+                                        if (!string.IsNullOrEmpty(currentText))
+                                        {
+                                            copiedText = currentText;
+                                            quietDeadline = Environment.TickCount + 45;
+                                        }
                                     }
+                                    if (quietDeadline != 0
+                                        && unchecked(quietDeadline - Environment.TickCount) <= 0) break;
                                     Thread.Sleep(useWpsCompatibility ? 18 : 12);
                                 }
                             }
@@ -87,8 +117,15 @@ namespace SelectionTranslator
                     finally
                     {
                         if (snapshot != null) snapshot.Dispose();
+                        if (gateEntered) ClipboardGate.Release();
                     }
-                    completion.TrySetResult(copiedText ?? "");
+                    completion.TrySetResult(new ClipboardReadResult
+                    {
+                        Text = copiedText ?? "",
+                        WarningMessage = string.IsNullOrWhiteSpace(copiedText) && clipboardChangedBeforeCopy
+                            ? "检测到剪贴板在取词前发生了变化。为避免翻译旧文本，本次已跳过；请重新选择一次。"
+                            : ""
+                    });
                 }
             });
             thread.IsBackground = true;

@@ -36,7 +36,23 @@ namespace SelectionTranslator
                 using (var hook = new GlobalMouseHook(delegate { return settings; })) { }
                 Console.WriteLine("PASS global mouse hook install/uninstall");
 
-                using (var popup = new PopupForm()) { }
+                var clickTracker = new MultiClickTracker();
+                Assert(clickTracker.RecordClick(new Point(100, 100), 1000, 500, new Size(6, 6)) == 1,
+                    "first click does not trigger selection");
+                Assert(clickTracker.RecordClick(new Point(101, 101), 1180, 500, new Size(6, 6)) == 2,
+                    "double click recognized");
+                Assert(clickTracker.RecordClick(new Point(101, 100), 1350, 500, new Size(6, 6)) == 3,
+                    "triple click recognized");
+                clickTracker.Reset();
+                Assert(clickTracker.RecordClick(new Point(300, 300), 1500, 500, new Size(6, 6)) == 1,
+                    "click sequence reset");
+                Console.WriteLine("PASS double-click and triple-click selection recognition");
+
+                using (var popup = new PopupForm())
+                {
+                    Assert(FindButton(popup, "复制原文") != null, "copy original button");
+                    Assert(FindButton(popup, "复制译文") != null, "copy translation button");
+                }
                 using (var settingsForm = new SettingsForm(settings)) { }
                 using (var existingInstanceForm = new ExistingInstanceForm()) { }
                 using (var speaker = new OriginalTextSpeaker()) { }
@@ -117,6 +133,18 @@ namespace SelectionTranslator
         private static void Assert(bool condition, string name)
         {
             if (!condition) throw new InvalidOperationException("Smoke test failed: " + name);
+        }
+
+        private static Button FindButton(Control parent, string text)
+        {
+            foreach (Control child in parent.Controls)
+            {
+                var button = child as Button;
+                if (button != null && button.Text == text) return button;
+                var nested = FindButton(child, text);
+                if (nested != null) return nested;
+            }
+            return null;
         }
 
         private static void TestNativeGlobalMemoryRoundTrip()

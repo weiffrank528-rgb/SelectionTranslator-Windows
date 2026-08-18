@@ -21,6 +21,7 @@ namespace SelectionTranslator
         internal string Text;
         internal Rectangle? SelectionRectangle;
         internal string Method;
+        internal string WarningMessage;
         internal bool IsSensitive;
 
         internal static SelectionReadResult Empty(string method)
@@ -50,12 +51,13 @@ namespace SelectionTranslator
             var isWps = string.Equals(window.ProcessName, "wps", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(window.ProcessName, "wpspdf", StringComparison.OrdinalIgnoreCase);
             var useWpsCompatibility = isWps && settings.EnableWpsCompatibility;
-            var copiedText = await ClipboardSelectionReader.TryReadAsync(
+            var clipboardResult = await ClipboardSelectionReader.TryReadAsync(
                 window.Handle, window.ProcessId, useWpsCompatibility,
                 clipboardSequenceAtMouseUp, token);
             return new SelectionReadResult
             {
-                Text = copiedText ?? "",
+                Text = clipboardResult == null ? "" : clipboardResult.Text ?? "",
+                WarningMessage = clipboardResult == null ? "" : clipboardResult.WarningMessage ?? "",
                 Method = useWpsCompatibility ? "WPS 兼容 Ctrl+C" : "Ctrl+C 兜底"
             };
         }

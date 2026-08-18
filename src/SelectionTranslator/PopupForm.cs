@@ -30,12 +30,14 @@ namespace SelectionTranslator
         private readonly Button _speakButton;
         private readonly Button _copyButton;
         private readonly Label _translationTitle;
+        private readonly Button _copyTranslationButton;
         private readonly Label _result;
         private readonly Label _footer;
         private readonly Timer _hideTimer;
 
         private Point _anchor;
         private string _fullSourceText = "";
+        private string _fullTranslationText = "";
         private string _baseFooterText = "";
         private int _autoHideMilliseconds;
         private bool _isSpeaking;
@@ -134,6 +136,11 @@ namespace SelectionTranslator
                 TextAlign = ContentAlignment.MiddleLeft,
                 Text = "中文翻译"
             };
+            _copyTranslationButton = CreateFlatButton("复制译文", new Size(108, 32));
+            _copyTranslationButton.Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Bold);
+            _copyTranslationButton.BackColor = Color.FromArgb(59, 65, 77);
+            _copyTranslationButton.ForeColor = Color.White;
+            _copyTranslationButton.Click += delegate { CopyTranslationToClipboard(); };
             _result = new Label
             {
                 AutoSize = false,
@@ -158,6 +165,7 @@ namespace SelectionTranslator
             Controls.Add(_closeButton);
             Controls.Add(_sourceCard);
             Controls.Add(_translationTitle);
+            Controls.Add(_copyTranslationButton);
             Controls.Add(_result);
             Controls.Add(_footer);
 
@@ -176,6 +184,7 @@ namespace SelectionTranslator
             };
             StyleButtonHover(_closeButton, WindowColor, Color.FromArgb(52, 57, 68));
             StyleButtonHover(_copyButton, Color.FromArgb(59, 65, 77), Color.FromArgb(75, 83, 98));
+            StyleButtonHover(_copyTranslationButton, Color.FromArgb(59, 65, 77), Color.FromArgb(75, 83, 98));
         }
 
         protected override bool ShowWithoutActivation { get { return true; } }
@@ -208,6 +217,7 @@ namespace SelectionTranslator
         {
             _anchor = anchor;
             _fullSourceText = source ?? "";
+            _fullTranslationText = "";
             _autoHideMilliseconds = 0;
             _isSpeaking = false;
             _header.Text = engine;
@@ -215,6 +225,7 @@ namespace SelectionTranslator
             SetLanguageLabels(sourceLanguage, targetLanguage, automaticallyDetected);
             _source.Text = Compact(_fullSourceText, 700);
             _result.Text = "正在翻译，请稍候…";
+            _copyTranslationButton.Enabled = false;
             _baseFooterText = "正在获取译文";
             _footer.Text = _baseFooterText;
             ResetSpeechButton();
@@ -228,13 +239,15 @@ namespace SelectionTranslator
         {
             _anchor = anchor;
             _fullSourceText = source ?? "";
+            _fullTranslationText = translation ?? "";
             _autoHideMilliseconds = autoHideMilliseconds;
             _isSpeaking = false;
             _header.Text = engine;
             _header.ForeColor = SuccessColor;
             SetLanguageLabels(sourceLanguage, targetLanguage, automaticallyDetected);
             _source.Text = Compact(_fullSourceText, 700);
-            _result.Text = translation;
+            _result.Text = _fullTranslationText;
+            _copyTranslationButton.Enabled = !string.IsNullOrWhiteSpace(_fullTranslationText);
             _baseFooterText = readMethod + " · 悬停暂停隐藏 · 点击外部关闭";
             _footer.Text = _baseFooterText;
             ResetSpeechButton();
@@ -247,6 +260,7 @@ namespace SelectionTranslator
         {
             _anchor = anchor;
             _fullSourceText = "";
+            _fullTranslationText = "";
             _autoHideMilliseconds = autoHideMilliseconds;
             _isSpeaking = false;
             _header.Text = "翻译失败";
@@ -255,6 +269,7 @@ namespace SelectionTranslator
             _translationTitle.Text = "错误详情";
             _source.Text = "请检查网络或在托盘菜单中打开设置。";
             _result.Text = message;
+            _copyTranslationButton.Enabled = false;
             _baseFooterText = "点击 × 或浮窗外部关闭";
             _footer.Text = _baseFooterText;
             ResetSpeechButton();
@@ -303,6 +318,21 @@ namespace SelectionTranslator
             }
         }
 
+        private void CopyTranslationToClipboard()
+        {
+            if (string.IsNullOrWhiteSpace(_fullTranslationText)) return;
+            try
+            {
+                Clipboard.SetText(_fullTranslationText);
+                _footer.Text = "译文已复制到剪贴板";
+                RestartHideTimer();
+            }
+            catch (ExternalException)
+            {
+                _footer.Text = "剪贴板正被其他程序占用，请稍后重试";
+            }
+        }
+
         protected override bool ProcessCmdKey(ref Message message, Keys keyData)
         {
             if (keyData == (Keys.Control | Keys.C) && !string.IsNullOrWhiteSpace(_fullSourceText))
@@ -341,6 +371,10 @@ namespace SelectionTranslator
             _sourceCard.Size = new Size(CardWidth, _source.Bottom + 14);
 
             _translationTitle.Location = new Point(OuterPadding + 2, _sourceCard.Bottom + 16);
+            _translationTitle.Size = new Size(CardWidth - _copyTranslationButton.Width - 16, 24);
+            _copyTranslationButton.Location = new Point(
+                PopupWidth - OuterPadding - 2 - _copyTranslationButton.Width,
+                _translationTitle.Top - 4);
             _result.Location = new Point(OuterPadding + 2, _translationTitle.Bottom + 7);
             var resultMeasured = TextRenderer.MeasureText(_result.Text ?? "", _result.Font,
                 new Size(CardWidth - 4, 410), TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl);

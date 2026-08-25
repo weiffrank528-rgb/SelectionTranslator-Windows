@@ -10,10 +10,7 @@ Windows 11 划词翻译工具：在其他应用中选中文字，松开鼠标后
 
 ## Demo
 
-<!-- Demo GIF: save the finished file as docs/images/selection-translator-demo.gif, then replace the PNG path below. -->
-![SelectionTranslator translation popup preview](docs/images/SelectionTranslator-popup-preview-0.4.6.png)
-
-*Current v0.4.6 preview. A 5–10 second demo GIF will replace this image.*
+![SelectionTranslator demo](docs/images/selection-translator-demo.gif)
 
 ## Highlights / 核心亮点
 

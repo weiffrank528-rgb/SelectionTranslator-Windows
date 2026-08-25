@@ -1,10 +1,31 @@
-# SelectionTranslator — Windows 11 左键划词自动翻译
+# SelectionTranslator for Windows
 
-> **Alpha 预览版（0.4.6）**：核心功能可用，但不同应用的可访问性实现差异很大。欢迎提交不含敏感内容的兼容性报告。
+**Select text. Release the mouse. See the translation — no hotkey, no extra click.**
 
-一个可运行的 Windows 桌面 MVP：在其他应用里用左键正常拖选文字，或双击/三击选择单词、行和段落，随后自动读取选区，并在选区或鼠标附近显示目标语言译文。无需按快捷键，也无需再点击“翻译”。
+Windows 11 划词翻译工具：在其他应用中选中文字，松开鼠标后自动显示译文。无需复制粘贴、无需快捷键，也无需再点击“翻译”。
 
-![SelectionTranslator 中译英浮窗](docs/images/SelectionTranslator-popup-preview-0.4.6.png)
+[⬇️ **Download v0.4.6 (.zip)**](https://github.com/weiffrank528-rgb/SelectionTranslator-Windows/releases/download/v0.4.6/SelectionTranslator-Windows-0.4.6.zip) · [Release notes / 更新说明](https://github.com/weiffrank528-rgb/SelectionTranslator-Windows/releases/tag/v0.4.6) · [Report an issue / 反馈问题](https://github.com/weiffrank528-rgb/SelectionTranslator-Windows/issues)
+
+> **Alpha preview / 预览版（0.4.6）**：核心功能可用，但不同应用的文字选取支持存在差异。欢迎提交不含敏感内容的兼容性反馈。
+
+## Demo
+
+<!-- Demo GIF: save the finished file as docs/images/selection-translator-demo.gif, then replace the PNG path below. -->
+![SelectionTranslator translation popup preview](docs/images/SelectionTranslator-popup-preview-0.4.6.png)
+
+*Current v0.4.6 preview. A 5–10 second demo GIF will replace this image.*
+
+## Highlights / 核心亮点
+
+- 🖱️ **No-hotkey workflow** — drag to select, double-click a word, or triple-click supported text; translation starts automatically.
+- ⚡ **One smooth action** — no copy-and-paste and no second “Translate” click.
+- 🪟 **Works across common Windows apps** — designed for browsers, Word, WPS, text-based PDFs, VS Code, and chat apps, with UI Automation and a safe clipboard fallback.
+- 🌐 **Multiple translation engines** — MyMemory works without an API key; Google Cloud Translation, OpenAI, and DeepL are also supported.
+- 🔊 **Focus-friendly popup** — copy text or translation and read the source aloud without taking keyboard focus from the app you are using.
+
+---
+
+## Technical details / 技术说明
 
 ## 当前能力
 
